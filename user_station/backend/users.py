@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import config
+from . import pwconf
 from .system import run_admin, check
 
 
@@ -43,7 +44,7 @@ def list_users(include_system=False):
     records = []
     for p in pwd.getpwall():
         if not include_system:
-            if p.pw_uid < config.FIRST_REGULAR_UID or p.pw_uid > config.MAX_ID:
+            if p.pw_uid < pwconf.min_uid() or p.pw_uid > pwconf.max_uid():
                 continue
         records.append(UserRecord(
             name=p.pw_name,
@@ -91,11 +92,12 @@ def uid_owner(uid):
 
 
 def next_free_uid(start=None):
-    """Lowest unused UID at or above the regular-account floor."""
-    start = start if start is not None else config.FIRST_REGULAR_UID
+    """Lowest unused UID inside the pw.conf minuid..maxuid range."""
+    start = start if start is not None else pwconf.min_uid()
+    ceiling = pwconf.max_uid()
     used = {p.pw_uid for p in pwd.getpwall()}
     uid = start
-    while uid in used and uid <= config.MAX_ID:
+    while uid in used and uid <= ceiling:
         uid += 1
     return uid
 
@@ -118,7 +120,7 @@ def validate_username(name):
 
 def add_user(name, uid, comment="", home=None, shell=None,
              primary_group=None, groups=None, create_home=True,
-             password=None):
+             password=None, login_class=None):
     """Create a user with pw useradd.
 
     primary_group None lets pw create a per-user group with the same
@@ -137,6 +139,8 @@ def add_user(name, uid, comment="", home=None, shell=None,
         cmd += ["-g", primary_group]
     if groups:
         cmd += ["-G", ",".join(groups)]
+    if login_class:
+        cmd += ["-L", login_class]
     if create_home:
         cmd += ["-m"]
     if password:
@@ -149,7 +153,7 @@ def add_user(name, uid, comment="", home=None, shell=None,
 
 
 def modify_user(name, uid=None, comment=None, home=None, shell=None,
-                primary_group=None, groups=None):
+                primary_group=None, groups=None, login_class=None):
     """Change account fields with pw usermod.
 
     groups (a list) replaces the full secondary group set; pass None
@@ -174,6 +178,9 @@ def modify_user(name, uid=None, comment=None, home=None, shell=None,
         changed = True
     if groups is not None:
         cmd += ["-G", ",".join(groups)]
+        changed = True
+    if login_class:
+        cmd += ["-L", login_class]
         changed = True
     if not changed:
         return None

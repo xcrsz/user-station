@@ -6,8 +6,12 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from .. import config, VERSION
+import os
+
 from ..backend import users as be_users
 from ..backend import groups as be_groups
+from ..backend import pwconf
+from ..backend import zfs as be_zfs
 from ..backend.system import AdminError
 from .user_dialog import UserDialog
 from .group_dialog import GroupDialog
@@ -200,6 +204,13 @@ class MainWindow(Gtk.Window):
             problems.append("Home directory is required.")
         if not data["shell"]:
             problems.append("Shell is required.")
+        if data.get("zfs_dataset"):
+            expected = os.path.join(pwconf.home_prefix(), data["name"])
+            if data["home"] != expected:
+                problems.append(
+                    "A ZFS home dataset mounts at %s; set the home "
+                    "directory to that path or uncheck the ZFS "
+                    "option." % expected)
         return problems
 
     def _add_user(self):
@@ -213,7 +224,11 @@ class MainWindow(Gtk.Window):
                 if problems:
                     self.error("\n".join(problems))
                     continue
+                created_ds = None
                 try:
+                    if data["zfs_dataset"]:
+                        created_ds = be_zfs.create_home_dataset(
+                            data["zfs_parent"], data["name"])
                     be_users.add_user(
                         name=data["name"], uid=data["uid"],
                         comment=data["comment"], home=data["home"],
@@ -221,8 +236,19 @@ class MainWindow(Gtk.Window):
                         primary_group=data["primary_group"],
                         groups=data["groups"],
                         create_home=data["create_home"],
-                        password=data["password"] or None)
+                        password=data["password"] or None,
+                        login_class=data["login_class"])
+                    if created_ds:
+                        new = be_users.get_user(data["name"])
+                        if new:
+                            be_zfs.chown_recursive(
+                                new.home, new.uid, new.gid)
                 except AdminError as exc:
+                    if created_ds:
+                        try:
+                            be_zfs.destroy_dataset(created_ds)
+                        except AdminError:
+                            pass
                     self.error(str(exc))
                     continue
                 break
@@ -262,7 +288,8 @@ class MainWindow(Gtk.Window):
                         shell=(data["shell"]
                                if data["shell"] != user.shell else None),
                         primary_group=data["primary_group"],
-                        groups=data["groups"])
+                        groups=data["groups"],
+                        login_class=data["login_class"])
                     if data["password"]:
                         be_users.set_password(user.name, data["password"])
                 except AdminError as exc:
@@ -278,6 +305,8 @@ class MainWindow(Gtk.Window):
         if not name:
             self.error("Select a user first.")
             return
+        user = be_users.get_user(name)
+        home_ds = be_zfs.dataset_at(user.home) if user else None
         dlg = Gtk.MessageDialog(
             transient_for=self, modal=True,
             message_type=Gtk.MessageType.QUESTION,
@@ -285,8 +314,13 @@ class MainWindow(Gtk.Window):
             text="Delete user '%s'?" % name)
         dlg.format_secondary_text(
             "The account and its group memberships will be removed.")
-        remove_home = Gtk.CheckButton(
-            label="Also delete the home directory")
+        if home_ds:
+            remove_home = Gtk.CheckButton(
+                label="Also destroy the ZFS home dataset (%s), "
+                      "including all snapshots" % home_ds)
+        else:
+            remove_home = Gtk.CheckButton(
+                label="Also delete the home directory")
         box = dlg.get_message_area()
         box.pack_start(remove_home, False, False, 0)
         remove_home.show()
@@ -296,7 +330,12 @@ class MainWindow(Gtk.Window):
         if response != Gtk.ResponseType.OK:
             return
         try:
-            be_users.delete_user(name, remove_home=wipe)
+            # pw -r would only empty a dataset mountpoint, so destroy
+            # the dataset itself when the home is one.
+            be_users.delete_user(
+                name, remove_home=(wipe and not home_ds))
+            if wipe and home_ds:
+                be_zfs.destroy_dataset(home_ds)
         except AdminError as exc:
             self.error(str(exc))
         self.refresh()

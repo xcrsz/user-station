@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import config
+from . import pwconf
 from .system import run_admin, check
 
 
@@ -22,7 +23,7 @@ def list_groups(include_system=False):
     records = []
     for g in grp.getgrall():
         if not include_system:
-            if g.gr_gid < config.FIRST_REGULAR_GID or g.gr_gid > config.MAX_ID:
+            if g.gr_gid < pwconf.min_gid() or g.gr_gid > pwconf.max_gid():
                 # Always show the groups admins actually assign.
                 if g.gr_name not in config.SUGGESTED_GROUPS:
                     continue
@@ -59,10 +60,12 @@ def group_name_for_gid(gid):
 
 
 def next_free_gid(start=None):
-    start = start if start is not None else config.FIRST_REGULAR_GID
+    """Lowest unused GID inside the pw.conf mingid..maxgid range."""
+    start = start if start is not None else pwconf.min_gid()
+    ceiling = pwconf.max_gid()
     used = {g.gr_gid for g in grp.getgrall()}
     gid = start
-    while gid in used and gid <= config.MAX_ID:
+    while gid in used and gid <= ceiling:
         gid += 1
     return gid
 

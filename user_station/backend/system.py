@@ -74,3 +74,25 @@ def read_shells():
     except OSError:
         pass
     return shells
+
+
+def read_login_classes(path="/etc/login.conf"):
+    """Login class names from /etc/login.conf (best effort).
+
+    Records start in column 0; continuation lines are indented. A
+    record head may list several names separated by '|'.
+    """
+    classes = []
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip() or line[0] in " \t#":
+                    continue
+                head = line.split(":", 1)[0]
+                for name in head.split("|"):
+                    name = name.strip()
+                    if name and name not in classes:
+                        classes.append(name)
+    except OSError:
+        pass
+    return classes

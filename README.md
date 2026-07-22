@@ -62,10 +62,15 @@ Current:
 - [x] Password set/change via pw -h 0 (never on the command line)
 - [x] Create / edit / delete groups with explicit GIDs
 - [x] Duplicate UID/GID and username validation
+- [x] /etc/pw.conf awareness (UID/GID ranges, home prefix, default
+      shell, default login class, extragroups)
+- [x] Login class selection from /etc/login.conf (advanced options)
+- [x] ZFS home datasets: create the home as a child dataset of the
+      dataset backing the home prefix; dataset-aware deletion
 
 Planned:
 
-- [ ] ZFS home datasets
+- [ ] Per-dataset quota/compression controls at creation time
 - [ ] LDAP support
 - [ ] Jail management
 - [ ] Import/export accounts
