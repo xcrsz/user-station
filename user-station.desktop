@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=User Station
+Comment=FreeBSD User and Group Manager
+Exec=user-station
+Icon=user-station
+Terminal=false
+Type=Application
+Categories=System;Settings;
+Keywords=user;group;account;uid;gid;nfs;

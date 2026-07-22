@@ -1,0 +1,18 @@
+user-station data model
+=======================
+
+Users are read from the system passwd database via Python's pwd module:
+    name : uid : gid : comment (GECOS) : home : shell
+
+Groups are read from the system group database via Python's grp module:
+    name : gid : members (secondary members only)
+
+A user's effective group set = primary group (numeric gid in passwd)
+plus every group whose member list contains the username.
+
+All mutations go through pw(8):
+    pw useradd / usermod / userdel
+    pw groupadd / groupmod / groupdel
+
+Passwords are never passed as command-line arguments. They are fed to
+pw's stdin using -h 0 so they do not appear in process listings.
