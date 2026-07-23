@@ -32,10 +32,21 @@ From source:
 
     ./bin/user-station
 
-Or install:
+Or install (use pip, not setup.py install):
 
-    python3 setup.py install
+    pkg install py312-pip
+    doas pip install --upgrade .
     user-station
+
+If you previously installed with `python3 setup.py install`, remove
+the stale artifacts first, or the deprecated distutils build cache
+can mix files from different versions into one egg:
+
+    rm -rf build dist user_station.egg-info
+    doas rm -rf /usr/local/lib/python3.12/site-packages/user_station-*.egg
+
+and delete any user_station lines from easy-install.pth in
+site-packages.
 
 ## Permissions
 
