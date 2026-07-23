@@ -24,9 +24,7 @@ dialog, pre-filled with the next free UID but always editable.
 
 ## Requirements
 
-    pkg install python3 py311-gobject3 gtk3 doas
-
-(Use the py3x prefix matching your installed Python.)
+    pkg install python3 py312-pygobject gtk3 doas
 
 ## Running
 
