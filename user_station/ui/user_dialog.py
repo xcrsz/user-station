@@ -207,12 +207,30 @@ class UserDialog(Gtk.Dialog):
                     "not a ZFS mountpoint)" % self._home_prefix)
                 self.zfs_home.set_sensitive(False)
             agrid.attach(self.zfs_home, 1, 2, 1, 1)
+
+            self.zfs_quota = Gtk.Entry()
+            self.zfs_quota.set_placeholder_text(
+                "e.g. 20G (blank = no quota)")
+            agrid.attach(Gtk.Label(label="Dataset quota:", xalign=1.0),
+                         0, 3, 1, 1)
+            self.zfs_quota.set_hexpand(True)
+            agrid.attach(self.zfs_quota, 1, 3, 1, 1)
+
+            self.zfs_compression = Gtk.ComboBoxText()
+            for choice in be_zfs.COMPRESSION_CHOICES:
+                self.zfs_compression.append_text(choice)
+            self.zfs_compression.set_active(0)
+            agrid.attach(Gtk.Label(label="Compression:", xalign=1.0),
+                         0, 4, 1, 1)
+            agrid.attach(self.zfs_compression, 1, 4, 1, 1)
+
             zfs_hint = Gtk.Label(xalign=0)
             zfs_hint.set_markup(
-                "<small>A per-user dataset gets its own snapshots, "
-                "quota and properties, inherited from the "
-                "parent.</small>")
-            agrid.attach(zfs_hint, 1, 3, 1, 1)
+                "<small>A per-user dataset gets its own snapshots and "
+                "properties. Quota and compression left at their "
+                "defaults are inherited from the parent.</small>")
+            agrid.attach(zfs_hint, 1, 5, 1, 1)
+            self._set_zfs_props_sensitive(False)
 
         expander.add(agrid)
         return expander
@@ -229,6 +247,11 @@ class UserDialog(Gtk.Dialog):
     def _on_group_toggled(self, renderer, path):
         self.group_store[path][0] = not self.group_store[path][0]
 
+    def _set_zfs_props_sensitive(self, sensitive):
+        if hasattr(self, "zfs_quota"):
+            self.zfs_quota.set_sensitive(sensitive)
+            self.zfs_compression.set_sensitive(sensitive)
+
     def _on_zfs_toggled(self, button):
         # pw -m must still populate skel files into the mounted
         # dataset, so home creation stays on.
@@ -237,6 +260,7 @@ class UserDialog(Gtk.Dialog):
             self.create_home.set_sensitive(False)
         else:
             self.create_home.set_sensitive(True)
+        self._set_zfs_props_sensitive(button.get_active())
 
     def _on_username_changed(self, entry):
         name = entry.get_text().strip()
@@ -279,4 +303,9 @@ class UserDialog(Gtk.Dialog):
             "zfs_dataset": (self.zfs_parent is not None
                             and self.zfs_home.get_active()),
             "zfs_parent": self.zfs_parent,
+            "zfs_quota": (self.zfs_quota.get_text().strip()
+                          if hasattr(self, "zfs_quota") else ""),
+            "zfs_compression": (
+                self.zfs_compression.get_active_text()
+                if hasattr(self, "zfs_compression") else "inherit"),
         }

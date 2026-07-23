@@ -8,33 +8,10 @@ chown go through doas.
 """
 
 import os
-import re
 import shutil
 import subprocess
 
 from .system import run_admin, check
-
-# Values offered for the compression property. "inherit" means the
-# property is simply not set, so the child follows the parent.
-COMPRESSION_CHOICES = ["inherit", "on", "off", "lz4", "zstd", "gzip"]
-
-_QUOTA_RE = re.compile(r"^[0-9]+(\.[0-9]+)?[KMGTPE]?B?$", re.IGNORECASE)
-
-
-def validate_quota(text):
-    """Return a problem string for an invalid quota, else None.
-
-    Accepts the forms zfs(8) does: a number with an optional binary
-    suffix (e.g. 20G, 1.5T, 500M) or the word 'none'. An empty
-    string means 'do not set the property'.
-    """
-    text = text.strip()
-    if not text or text.lower() == "none":
-        return None
-    if not _QUOTA_RE.match(text):
-        return ("Quota must be a size like 20G, 1.5T or 500M "
-                "(or 'none').")
-    return None
 
 
 def zfs_available():
@@ -86,28 +63,12 @@ def home_parent_dataset(home_prefix):
     return dataset_at(home_prefix)
 
 
-def build_create_command(parent, username, quota=None,
-                         compression=None):
-    """Assemble the zfs create argv (separate for testability)."""
-    name = "%s/%s" % (parent, username)
-    cmd = ["zfs", "create"]
-    quota = (quota or "").strip()
-    if quota and quota.lower() != "none":
-        cmd += ["-o", "quota=%s" % quota]
-    if compression and compression != "inherit":
-        cmd += ["-o", "compression=%s" % compression]
-    cmd.append(name)
-    return name, cmd
-
-
-def create_home_dataset(parent, username, quota=None, compression=None):
+def create_home_dataset(parent, username):
     """zfs create parent/username; the mountpoint is inherited, so
-    the child lands at <parent mountpoint>/<username>. Optional
-    quota and compression are set at creation; anything not given
-    is inherited from the parent."""
-    name, cmd = build_create_command(parent, username, quota,
-                                     compression)
-    check(run_admin(cmd), "Creating ZFS dataset '%s'" % name)
+    the child lands at <parent mountpoint>/<username>."""
+    name = "%s/%s" % (parent, username)
+    check(run_admin(["zfs", "create", name]),
+          "Creating ZFS dataset '%s'" % name)
     return name
 
 

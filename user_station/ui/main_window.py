@@ -211,6 +211,10 @@ class MainWindow(Gtk.Window):
                     "A ZFS home dataset mounts at %s; set the home "
                     "directory to that path or uncheck the ZFS "
                     "option." % expected)
+            quota_problem = be_zfs.validate_quota(
+                data.get("zfs_quota", ""))
+            if quota_problem:
+                problems.append(quota_problem)
         return problems
 
     def _add_user(self):
@@ -228,7 +232,9 @@ class MainWindow(Gtk.Window):
                 try:
                     if data["zfs_dataset"]:
                         created_ds = be_zfs.create_home_dataset(
-                            data["zfs_parent"], data["name"])
+                            data["zfs_parent"], data["name"],
+                            quota=data.get("zfs_quota"),
+                            compression=data.get("zfs_compression"))
                     be_users.add_user(
                         name=data["name"], uid=data["uid"],
                         comment=data["comment"], home=data["home"],

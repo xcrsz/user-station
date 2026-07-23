@@ -65,10 +65,11 @@ Current:
 - [x] Login class selection from /etc/login.conf (advanced options)
 - [x] ZFS home datasets: create the home as a child dataset of the
       dataset backing the home prefix; dataset-aware deletion
+- [x] Per-dataset quota and compression controls at creation time
+      (unset values are inherited from the parent)
 
 Planned:
 
-- [ ] Per-dataset quota/compression controls at creation time
 - [ ] LDAP support
 - [ ] Jail management
 - [ ] Import/export accounts
