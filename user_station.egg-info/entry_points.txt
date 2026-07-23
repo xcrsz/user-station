@@ -1,2 +1,0 @@
-[console_scripts]
-user-station = user_station.main:main
